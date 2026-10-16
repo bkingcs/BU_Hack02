@@ -153,12 +153,38 @@ q8's ~0.01 drift is small next to that gap, so we chose q8 for the smallest down
   - A 24 MP photo is about 96 MB of pixels while it's decoded.
 - **Tested** with a simulated failure on both pages, and with navigating away and back: the model reloads fine.
 
+### First real references: desk test (2026-10-16)
+
+`gems.json` exported from setup.html on the iPhone 13 Pro Max, with references for 4 desk objects. It was renamed to `huntId: desk-test-2026-10-16` so earlier placeholder progress resets.
+
+How well each gem's own references match each other:
+
+| Gem | Refs | Range | Mean |
+|---|---|---|---|
+| gem-01 orange object | 3 | 0.61–0.85 | 0.71 |
+| gem-02 blue object | 3 | 0.72–0.89 | 0.80 |
+| gem-03 door | 3 | 0.71–0.84 | 0.77 |
+| gem-04 plant | 4 | 0.32–0.82 | 0.43 |
+
+**Best match between references of different gems:** 0.46 (gem-01 vs gem-03), 0.34 (gem-02 vs gem-03); the rest are 0.28 or lower.
+- The provisional threshold of 0.5 sits in a narrow gap between "different gem" (up to 0.46) and "same gem" (down to 0.61, or 0.32 for the plant).
+- That is exactly what eval.html has to measure properly.
+
+**Finding: framing matters more than the object.** gem-04's four references are all the same plant.
+- #1 and #2 are wide shots (table, papers, poster). #3 and #4 are close-ups.
+- Wide vs. close-up scores about 0.35; close-up vs. close-up scores 0.82.
+- The CLS embedding describes the whole scene, so **reference photos must cover the distances and framings players will actually shoot from**. Best-of-references matching handles this, but only if the references include it.
+- This belongs in the student brief and the organizer tips.
+
+**File size.** The export is 175 KB, and about 140 KB of that is thumbnails (7–13 KB each on real photos), which every player downloads but never sees.
+- Step 5: consider smaller thumbnails, or keeping them out of the player's copy.
+
 ## To verify (with links when done)
 
 - [ ] iPhone: does Safari's HTTP cache keep the 24 MB model between the two requests, or does it download twice?
 - [ ] iPhone and Android: WebGPU or WASM, model load time, and time per photo (the debug panel shows all three).
-  - iPhone, first report: WebGPU, model loaded in 783 ms.
-- [ ] iPhone: does setup.html load reliably in a fresh tab and after the v0.2.1 `pagehide` release? If not, consider decoding photos at reduced size and loading setup in its own tab.
+  - iPhone 13 Pro Max, iOS 27 (Safari): WebGPU, model loaded in 783 ms (player page).
+- [x] iPhone: setup.html works on v0.2.2 in a fresh tab. Brian added references for all four gems and exported gems.json (iPhone 13 Pro Max, iOS 27, 2026-10-16).
 - [ ] Transformers.js `image-feature-extraction`: pinned version, the `pool` option, output shape for DINOv2, and the preprocessing (resize and center crop?).
 - [ ] iOS: whether a home-screen web app has storage separate from Safari. If it does, players should install first, then play.
 
