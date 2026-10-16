@@ -28,3 +28,8 @@ Then open <http://localhost:8000/?demo=1> (`?demo=1` lets you pick photos instea
 | `gems.json` | The hunt: each gem's name, clue, location and backup question |
 | `js/config.js` | Numbers you can tune, like how many tries before the backup question |
 | `js/app.js` | What happens when you tap things |
+
+## Publish it
+
+See [PUBLISHING.md](PUBLISHING.md) to put your app on the web with GitHub Pages.
+Live prototype: <https://bkingcs.github.io/BU_Hack02/> (desk demo: add `?demo=1`).

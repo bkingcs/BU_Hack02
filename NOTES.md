@@ -67,14 +67,31 @@ Defaults still open to override:
 ## To verify (with links when done)
 - [ ] Transformers.js `image-feature-extraction`: pinned version, the `pool` option, output shape for DINOv2, and the preprocessing (resize and center crop?).
 - [ ] iOS: whether a home-screen web app has storage separate from Safari. If it does, players should install first, then play.
-- [ ] GitHub Pages: everything in the walkthrough (step 2).
-- [ ] Pages `Cache-Control` max-age, which affects how quickly phones see updates before the service worker exists.
 
 ## Open issues
 
 - Before step 7 there's no service worker. "Refresh app" reloads the page, but the browser may still serve cached JS for a few minutes. Step 7's versioned service worker fixes this.
 - `normalizeAnswer` in `js/answer.js` is a minimal placeholder for Brian to finish. If it changes, re-hash the placeholder answers in `gems.json` (setup mode will do this automatically later).
 - The placeholder gems in `gems.json` use one approximate campus coordinate. They will be replaced by setup-mode exports.
+
+### Our first deploy (observed 2026-10-16)
+
+- **Live URL:** <https://bkingcs.github.io/BU_Hack02/>. The repo is public and the About box links to the site.
+- **Pages settings.**
+  - Source already defaulted to "Deploy from a branch"; Branch started as "None" (Pages off).
+  - After choosing `main` / `/ (root)` and saving, **Enforce HTTPS** was checked and greyed out: "Required for your site because you are using the default domain."
+- **Deploy run.** The Actions tab showed **pages build and deployment** #1, with jobs `build` → `report-build-status` → `deploy`. It took **28 s** from push to live, and the repo sidebar showed "Deployments: github-pages".
+- **Checks with `curl` against the live site.**
+  - `http://` gets a 301 to `https://`.
+  - `/BU_Hack02` (no slash) gets a 301 to `/BU_Hack02/`.
+  - **`/bu_hack02/` returns 404: the repo path is case-sensitive.**
+  - Every response carries `Cache-Control: max-age=600`.
+  - Correct content types for `.js` and `.json`.
+- **`.nojekyll`: we keep it.** We don't use Jekyll, and it tells Pages to publish the files as they are.
+  - Side effect: dot-folders get published too. `.claude/launch.json` is publicly readable, which is harmless but a reminder that everything in a Pages repo is public.
+  - Without it, Jekyll would silently drop any future file or folder whose name starts with `_`.
+- **Live page check.** In a browser: `isSecureContext` is true, `crypto.subtle` is available, and the footer shows Version 0.1.0.
+- **Tooling.** `gh` 2.102.0 is installed and logged in as bkingcs. The repo and Pages setup were done in the web UI, as the spec asks, so the steps match what students will do.
 
 ## Step log
 
@@ -84,3 +101,7 @@ Defaults still open to override:
   - Progress and photos persist in IndexedDB across reloads; "Start over" clears them.
   - Photos are downscaled to a 1024 px long edge (a 3000×4000 test image is stored as 768×1024).
   - URL switches: `?demo=1` shows the banner and allows camera-roll photos; `?stub=fail` forces misses (step 1 only).
+- **Step 2 (publish to Pages): done 2026-10-16.**
+  - Live at <https://bkingcs.github.io/BU_Hack02/>.
+  - `PUBLISHING.md` written for students.
+  - Phone test on the live URL is still pending (Brian).
