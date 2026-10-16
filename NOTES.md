@@ -179,6 +179,31 @@ How well each gem's own references match each other:
 **File size.** The export is 175 KB, and about 140 KB of that is thumbnails (7–13 KB each on real photos), which every player downloads but never sees.
 - Step 5: consider smaller thumbnails, or keeping them out of the player's copy.
 
+### First player test with real references (2026-10-16, v0.2.2)
+
+Exported check log: 9 photo checks, demo mode, iPhone 13 Pro Max, iOS 27.0.1.
+
+**Browser.** The user agent says **Chrome for iOS** (`CriOS/153`), not Safari.
+- On iOS every browser uses WebKit, so this mostly tests the same engine.
+- We still need a run in Safari itself and in the installed home-screen app.
+
+**Speed.** **WebGPU**, **550–634 ms per photo** (embedding plus comparison).
+- That's fast enough that the "Checking…" screen barely shows.
+
+**Scores** (threshold 0.5):
+
+| Gem | Attempts → outcome (best score) |
+|---|---|
+| gem-01 orange | 0.23 fail, 0.13 fail, **0.56 pass** |
+| gem-02 blue | -0.01 fail, 0.25 fail, **0.87 pass** |
+| gem-03 door | 0.38 fail, **0.89 pass** |
+| gem-04 plant | 0.42 fail (no pass logged) |
+
+- Clear passes scored 0.87–0.89; one pass was marginal (0.56).
+- Fails ranged from -0.01 to 0.42.
+- Still unknown: which of the fails were *meant* to pass. A 0.38 or 0.42 on the right object would be a wrongly rejected player at 0.5.
+- The log starts at attempt 2 for gem-01, so attempt 1 probably happened before a "Clear log".
+
 ## To verify (with links when done)
 
 - [ ] iPhone: does Safari's HTTP cache keep the 24 MB model between the two requests, or does it download twice?
