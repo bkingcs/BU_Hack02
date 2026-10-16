@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#003865">
+  <title>Hidden Gems</title>
+  <link rel="icon" href="icons/gem.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- All of the app's behavior lives in js/app.js (and the files it imports). -->
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <!-- Shown only with ?demo=1 in the URL, so nobody forgets demo mode is on. -->
+  <div id="demo-banner" class="demo-banner" hidden>
+    DEMO MODE: location check is off. Pick photos from your camera roll.
+  </div>
+
+  <header class="app-header">
+    <img src="icons/gem.svg" alt="" class="logo" width="40" height="40">
+    <h1>Hidden Gems</h1>
+    <p id="found-count" class="found-count"></p>
+  </header>
+
+  <main>
+    <!-- Each <section> is one screen. js/app.js shows one at a time. -->
+
+    <section id="screen-start" class="screen" hidden>
+      <h2>The Best of Bucknell</h2>
+      <p class="lead">Follow the clues. Find each hidden spot. Take a photo there to unlock the next clue.</p>
+      <div class="actions">
+        <button id="start-btn" class="button primary">Start the hunt</button>
+      </div>
+    </section>
+
+    <section id="screen-clue" class="screen" hidden>
+      <p id="gem-count" class="eyebrow"></p>
+      <h2>Your clue</h2>
+      <p id="clue-text" class="clue"></p>
+      <p id="attempts-text" class="muted"></p>
+
+      <!-- Appears after too many missed photos. -->
+      <div id="backup-box" class="backup-box" hidden>
+        <h3>Stuck? Answer this instead</h3>
+        <p>You'll only know it if you're standing there.</p>
+        <p id="backup-question" class="backup-question"></p>
+        <form id="backup-form">
+          <label for="backup-answer" class="visually-hidden">Your answer</label>
+          <input id="backup-answer" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Your answer" required>
+          <button type="submit" class="button secondary">Check answer</button>
+        </form>
+        <p id="backup-feedback" class="feedback" role="status"></p>
+      </div>
+
+      <div class="actions">
+        <!-- A <label> styled as a button opens the camera. The real file input
+             is hidden: it is the most reliable camera option on iPhone and Android. -->
+        <label class="button primary" for="photo-input" id="photo-label">Take a photo</label>
+        <input id="photo-input" class="visually-hidden" type="file" accept="image/*" capture="environment">
+      </div>
+    </section>
+
+    <section id="screen-checking" class="screen" hidden>
+      <img id="checking-photo" class="photo" alt="The photo you just took">
+      <p class="lead center" role="status"><span class="spinner" aria-hidden="true"></span> Checking your photo…</p>
+    </section>
+
+    <section id="screen-result" class="screen" hidden>
+      <img id="result-photo" class="photo" alt="Your photo">
+      <h2 id="result-title"></h2>
+      <p id="result-message" class="lead"></p>
+      <div class="actions">
+        <button id="result-btn" class="button primary"></button>
+      </div>
+    </section>
+
+    <section id="screen-album" class="screen" hidden>
+      <h2>You found them all!</h2>
+      <p class="lead">Here's your hunt.</p>
+      <ul id="album-list" class="album"></ul>
+    </section>
+
+    <section id="screen-error" class="screen" hidden>
+      <h2>Something went wrong</h2>
+      <p id="error-message" class="lead"></p>
+      <div class="actions">
+        <button id="error-retry-btn" class="button primary">Try again</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span id="app-version"></span>
+    <button id="refresh-btn" class="link-button">Refresh app</button>
+    <button id="reset-btn" class="link-button">Start over</button>
+  </footer>
+</body>
+</html>

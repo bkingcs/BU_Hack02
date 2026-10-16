@@ -1,0 +1,5 @@
+.DS_Store
+# Reference photos stay off GitHub; only embeddings go in gems.json
+reference-photos/
+eval-photos/
+.claude/settings.local.json

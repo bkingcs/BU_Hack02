@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Hidden Gems icon: an orange gem on Bucknell blue. -->
+  <rect width="64" height="64" rx="14" fill="#003865"/>
+  <polygon points="20,17 44,17 55,28 32,53 9,28" fill="#E8751E"/>
+  <g fill="none" stroke="#003865" stroke-width="2" stroke-linejoin="round">
+    <polygon points="20,17 44,17 55,28 32,53 9,28"/>
+    <polyline points="9,28 55,28"/>
+    <polyline points="20,17 25,28 32,17 39,28 44,17"/>
+    <polyline points="25,28 32,53 39,28"/>
+  </g>
+</svg>
