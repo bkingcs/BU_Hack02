@@ -38,13 +38,21 @@ function loadDraft() {
 // ---------- Reference photos ----------
 
 async function addReferences(gem, files, statusLine) {
+  // Finish loading the model before opening any photos. A full-size phone
+  // photo takes 50-200 MB of memory while it's being shrunk, and an iPhone
+  // can run out if that happens while the model is still starting.
+  statusLine.textContent = 'Waiting for the model…';
+  await loadModel();
+
   let done = 0;
   for (const file of files) {
     statusLine.textContent = `Processing photo ${done + 1} of ${files.length}…`;
     // Shrink exactly like the player app does, so the numbers are comparable.
     const photo = await downscalePhoto(file);
     const embedding = await embedImage(photo.blob);
-    const thumbnail = await downscalePhoto(file, THUMBNAIL_EDGE, 0.6);
+    // Make the thumbnail from the already-small copy, so each full-size
+    // photo is opened only once.
+    const thumbnail = await downscalePhoto(photo.blob, THUMBNAIL_EDGE, 0.6);
     gem.references.push({
       // 4 decimal places is plenty, and keeps gems.json small.
       embedding: Array.from(embedding, (x) => Number(x.toFixed(4))),
@@ -122,7 +130,8 @@ function render() {
         await addReferences(gem, files, statusLine);
       } catch (error) {
         console.error(error);
-        statusLine.textContent = `Something went wrong: ${error.message}`;
+        statusLine.textContent = error.friendlyMessage ?? `Something went wrong: ${error.message}`;
+        if (error.friendlyMessage) $('setup-reload-btn').hidden = false;
       }
     });
     return card;
@@ -165,9 +174,13 @@ async function main() {
     } else if (info.status === 'ready') {
       $('setup-model-status').textContent = `Model ready (${MODEL_ID} ${MODEL_DTYPE} on ${info.device}).`;
     } else if (info.status === 'error') {
-      $('setup-model-status').textContent = `The model couldn't load: ${info.error.message}`;
+      // Plain words first, then the technical message for us.
+      $('setup-model-status').textContent = `${info.error.friendlyMessage} (${info.error.message})`;
+      $('setup-reload-btn').hidden = false;
     }
   });
+  // Your reference photos are saved on this device, so reloading loses nothing.
+  $('setup-reload-btn').addEventListener('click', () => location.reload());
 
   hunt = loadDraft() ?? (await loadHunt());
   render();

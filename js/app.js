@@ -18,7 +18,7 @@ import {
 import { downscalePhoto } from './photo.js';
 import { checkPhoto } from './check.js';
 import { isCorrectAnswer } from './answer.js';
-import { loadModel, onModelProgress } from './embeddings.js';
+import { loadModel, onModelProgress, ModelLoadError } from './embeddings.js';
 import { recordPhotoCheck, recordBackupAnswer } from './log.js';
 import { initDebug, showInDebug, setDebugNote } from './debug.js';
 
@@ -130,6 +130,15 @@ async function handlePhoto(event) {
   } catch (error) {
     // A broken photo is not the player's fault, so it doesn't count as a miss.
     console.error(error);
+    if (error instanceof ModelLoadError) {
+      showResult({
+        title: 'The photo checker needs a restart',
+        message: `${error.friendlyMessage} Your progress is saved.`,
+        buttonText: 'Reload',
+        onButton: () => location.reload(),
+      });
+      return;
+    }
     showResult({
       title: 'That photo didn’t work',
       message: 'Something went wrong checking the photo. Please try again.'
@@ -262,10 +271,11 @@ function showModelStatus(info) {
   } else if (info.status === 'ready') {
     text = '';
   } else if (info.status === 'error') {
-    text = 'The photo checker couldn’t load. Check your connection, then tap “Refresh app” below.';
+    text = info.error.friendlyMessage;
   } else {
     return;
   }
+  $('model-reload-btn').hidden = info.status !== 'error';
   $('model-status').textContent = text;
   $('checking-detail').textContent = text;
 }
@@ -303,6 +313,7 @@ async function main() {
   $('result-btn').addEventListener('click', () => onResultButton());
   $('reset-btn').addEventListener('click', startOver);
   $('error-retry-btn').addEventListener('click', () => location.reload());
+  $('model-reload-btn').addEventListener('click', () => location.reload());
 
   initDebug();
   onModelProgress(showModelStatus);

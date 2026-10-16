@@ -127,10 +127,38 @@ q8's ~0.01 drift is small next to that gap, so we chose q8 for the smallest down
 - In Chromium the model is fetched twice (a metadata request, then the load), but only one network transfer happens: the second is served from the HTTP cache.
 - About 5 s from page open to model ready on a laptop.
 
+### iPhone "Out of memory" in setup.html (2026-10-16, fixed in v0.2.1)
+
+**What happened.** On Brian's iPhone the player loaded the model fine (WebGPU, 783 ms). setup.html then failed with
+`no available backend found. ERR: [webgpu] RangeError: Out of memory`.
+
+**Cause, from the bundled ONNX Runtime source plus a reproduction on desktop:**
+- **The 4 GB reservation.** ONNX Runtime starts with `new WebAssembly.Memory({initial: 256, maximum: 65536, shared: true})`, i.e. room to grow to 4 GB.
+  - iOS Safari throws `RangeError: Out of memory` when it can't reserve that.
+  - We reproduced the exact message on desktop by making `WebAssembly.Memory` throw for a large `maximum`.
+- **The failure is cached for the life of the page.** ONNX Runtime's backend registry sets `aborted = true` and returns the stored error from then on.
+  - WebGPU and WASM share the same WebAssembly module, so our WASM fallback runs but gets the same WebGPU error back.
+  - **Retrying in the page can't work; only a reload can.**
+- **Likely trigger:** the player page still held its model when setup.html opened, for example in the same tab, where Safari's back/forward cache keeps the previous page alive. This is still to confirm with Brian.
+
+**Fixes in v0.2.1:**
+- **Release on `pagehide`.** `embeddings.js` disposes the model when the page is hidden, so the next page has room.
+- **Recovery screens.**
+  - `ModelLoadError` carries a plain-language `friendlyMessage`, worded for memory or connection problems.
+  - The player shows "The photo checker needs a restart … Your progress is saved" with a Reload button. The failed photo doesn't count as a miss.
+  - setup.html shows the message plus a "Reload page" button; references are saved in localStorage.
+- **Lower peak memory in setup.html.**
+  - Wait for the model before opening any photos.
+  - Make the thumbnail from the 1024 px copy instead of decoding the full-size photo a second time.
+  - A 24 MP photo is about 96 MB of pixels while it's decoded.
+- **Tested** with a simulated failure on both pages, and with navigating away and back: the model reloads fine.
+
 ## To verify (with links when done)
 
 - [ ] iPhone: does Safari's HTTP cache keep the 24 MB model between the two requests, or does it download twice?
 - [ ] iPhone and Android: WebGPU or WASM, model load time, and time per photo (the debug panel shows all three).
+  - iPhone, first report: WebGPU, model loaded in 783 ms.
+- [ ] iPhone: does setup.html load reliably in a fresh tab and after the v0.2.1 `pagehide` release? If not, consider decoding photos at reduced size and loading setup in its own tab.
 - [ ] Transformers.js `image-feature-extraction`: pinned version, the `pool` option, output shape for DINOv2, and the preprocessing (resize and center crop?).
 - [ ] iOS: whether a home-screen web app has storage separate from Safari. If it does, players should install first, then play.
 

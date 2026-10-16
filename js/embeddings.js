@@ -44,15 +44,43 @@ function reportProgress(info) {
 
 let extractorPromise = null;
 
+// Thrown when the model can't start. Once that happens, trying again in the
+// same page never works (the AI runtime remembers the failure), so the only
+// fix is reloading the page. `friendlyMessage` says that in plain words.
+export class ModelLoadError extends Error {
+  constructor(cause) {
+    super(cause.message, { cause });
+    this.name = 'ModelLoadError';
+    this.friendlyMessage = /out of memory/i.test(cause.message)
+      ? 'This phone ran low on memory for the photo checker. Close other browser tabs, then reload the page.'
+      : 'The photo checker couldn’t start. Check your connection, then reload the page.';
+  }
+}
+
 // Start loading the model. Safe to call many times: it only loads once.
 export function loadModel() {
   extractorPromise ??= createExtractor(['webgpu', 'wasm']).catch((error) => {
-    extractorPromise = null;   // allow another try later
-    reportProgress({ status: 'error', error });
-    throw error;
+    const loadError = new ModelLoadError(error);
+    reportProgress({ status: 'error', error: loadError });
+    throw loadError;
   });
   return extractorPromise;
 }
+
+// Give the model's memory back when the page goes away. iPhones allow web
+// pages very little memory, and Safari may keep the previous page alive (for
+// the Back button), so a page that still holds the model can stop the next
+// page from loading it.
+window.addEventListener('pagehide', async () => {
+  const running = extractorPromise;
+  extractorPromise = null;
+  modelInfo.device = null;
+  try {
+    await (await running)?.dispose();
+  } catch {
+    // Nothing to free if it never loaded.
+  }
+});
 
 // Try each device in order. WebGPU uses the phone's graphics chip (fast);
 // WASM runs on the regular processor (works everywhere, slower).
@@ -73,6 +101,8 @@ async function createExtractor(devices) {
       reportProgress({ status: 'ready', device });
       return extractor;
     } catch (error) {
+      // Note: if the failure was running out of memory, the next option fails
+      // the same way. Both use the same WebAssembly memory.
       console.warn(`The model could not start on ${device}. Trying the next option.`, error);
       lastError = error;
     }
@@ -98,7 +128,9 @@ export async function embedImage(image) {
     if (modelInfo.device !== 'webgpu') throw error;
     // Some phones offer WebGPU but fail when it actually runs. Switch to WASM once.
     console.warn('WebGPU failed while running the model. Switching to WASM.', error);
-    extractorPromise = createExtractor(['wasm']);
+    extractorPromise = createExtractor(['wasm']).catch((wasmError) => {
+      throw new ModelLoadError(wasmError);
+    });
     extractor = await extractorPromise;
     output = await extractor(image);
   }

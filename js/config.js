@@ -2,7 +2,7 @@
 
 // Shown in the footer. Bump it every time you publish, so you can tell
 // at a glance whether your phone has the newest version.
-export const APP_VERSION = '0.2.0';
+export const APP_VERSION = '0.2.1';
 
 // After this many missed photos on one gem, offer the backup question.
 export const MAX_ATTEMPTS = 3;
