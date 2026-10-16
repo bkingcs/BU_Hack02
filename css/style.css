@@ -205,6 +205,82 @@ input[type="text"] {
 .album .caption { padding: 0.5rem 0.6rem; font-weight: 700; }
 .album .badge { display: block; font-weight: 400; font-size: 0.85rem; color: var(--muted); }
 
+.model-status { margin: 0; font-size: 0.95rem; color: var(--muted); }
+.model-status:empty { display: none; }
+
+/* ---------- Setup page (setup.html) ---------- */
+
+.setup { display: block; padding: 1rem; max-width: 40rem; margin: 0 auto; width: 100%; }
+.gem-card {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin: 1rem 0;
+}
+.gem-card h2 { font-size: 1.2rem; }
+.ref-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+}
+.ref-list img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+.ref-list button {
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  background: var(--paper);
+  border: 2px solid var(--danger);
+  border-radius: 8px;
+  color: var(--danger);
+  font: inherit;
+  font-size: 0.85rem;
+}
+.ref-stats { font-weight: 600; }
+.setup-actions { display: flex; flex-direction: column; gap: 0.75rem; margin: 1.5rem 0; }
+
+/* ---------- Debug panel (?debug=1) ---------- */
+
+/* Sits at the top of the page (not floating), so it never covers a button. */
+.debug-panel {
+  margin: 0.5rem 0.5rem 0;
+  background: #111418;
+  color: #fff;
+  border-radius: var(--radius);
+  font: 13px/1.35 ui-monospace, Menlo, Consolas, monospace;
+}
+.debug-toggle {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+#debug-body { padding: 0 0.75rem 0.75rem; }
+#debug-fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0 0 0.5rem;
+}
+#debug-fields dt { color: #9fb3c8; }
+#debug-fields dd { margin: 0; overflow-wrap: anywhere; }
+.debug-actions { display: flex; gap: 0.5rem; }
+.debug-actions button {
+  flex: 1;
+  min-height: 2.75rem;
+  background: #2b3440;
+  color: #fff;
+  border: 1px solid #4a5563;
+  border-radius: 8px;
+  font: inherit;
+}
+
 /* ---------- Helpers ---------- */
 
 .spinner {

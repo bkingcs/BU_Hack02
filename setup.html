@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#003865">
+  <!-- Organizer page. Not linked from the player app, and search engines are asked to skip it. -->
+  <meta name="robots" content="noindex">
+  <title>Hidden Gems Setup</title>
+  <link rel="icon" href="icons/gem.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/setup.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <img src="icons/gem.svg" alt="" class="logo" width="40" height="40">
+    <h1>Hidden Gems Setup</h1>
+  </header>
+
+  <main class="setup">
+    <p class="muted">
+      For organizers. At each gem, add 3 to 5 reference photos taken from different
+      angles. When every gem is done, export <code>gems.json</code> and commit it to the repo.
+      Your work is saved on this device as you go.
+    </p>
+    <p id="setup-model-status" class="model-status" role="status"></p>
+
+    <div id="gem-list"></div>
+
+    <div class="setup-actions">
+      <button id="export-btn" class="button primary">Export gems.json</button>
+      <button id="reload-btn" class="button secondary">Discard changes and reload gems.json</button>
+    </div>
+  </main>
+
+  <!-- One of these is copied for each gem by js/setup.js. -->
+  <template id="gem-card-template">
+    <section class="gem-card">
+      <h2 class="gem-name"></h2>
+      <p class="gem-clue muted"></p>
+      <ul class="ref-list"></ul>
+      <p class="ref-stats" role="status"></p>
+      <label class="button secondary">
+        Add reference photos
+        <input type="file" accept="image/*" multiple class="visually-hidden ref-input">
+      </label>
+    </section>
+  </template>
+
+  <footer class="app-footer">
+    <span id="app-version"></span>
+  </footer>
+</body>
+</html>

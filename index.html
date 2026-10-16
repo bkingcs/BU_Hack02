@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="css/style.css">
   <!-- All of the app's behavior lives in js/app.js (and the files it imports). -->
   <script type="module" src="js/app.js"></script>
+  <!-- Loaded separately so "Refresh app" works even if app.js fails to start. -->
+  <script type="module" src="js/pwa.js"></script>
 </head>
 <body>
   <!-- Shown only with ?demo=1 in the URL, so nobody forgets demo mode is on. -->
@@ -23,6 +25,18 @@
   </header>
 
   <main>
+    <!-- Debug panel: only shown with ?debug=1. js/debug.js fills it in. -->
+    <aside id="debug-panel" class="debug-panel" hidden>
+      <button id="debug-toggle" class="debug-toggle" aria-expanded="false">Debug</button>
+      <div id="debug-body" hidden>
+        <dl id="debug-fields"></dl>
+        <div class="debug-actions">
+          <button id="debug-export">Export CSV</button>
+          <button id="debug-clear">Clear log</button>
+        </div>
+      </div>
+    </aside>
+
     <!-- Each <section> is one screen. js/app.js shows one at a time. -->
 
     <section id="screen-start" class="screen" hidden>
@@ -53,6 +67,8 @@
       </div>
 
       <div class="actions">
+        <!-- First visit only: shows the AI model downloading. -->
+        <p id="model-status" class="model-status" role="status"></p>
         <!-- A <label> styled as a button opens the camera. The real file input
              is hidden: it is the most reliable camera option on iPhone and Android. -->
         <label class="button primary" for="photo-input" id="photo-label">Take a photo</label>
@@ -63,6 +79,7 @@
     <section id="screen-checking" class="screen" hidden>
       <img id="checking-photo" class="photo" alt="The photo you just took">
       <p class="lead center" role="status"><span class="spinner" aria-hidden="true"></span> Checking your photo…</p>
+      <p id="checking-detail" class="model-status center"></p>
     </section>
 
     <section id="screen-result" class="screen" hidden>
@@ -88,6 +105,7 @@
       </div>
     </section>
   </main>
+
 
   <footer class="app-footer">
     <span id="app-version"></span>

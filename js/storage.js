@@ -82,6 +82,21 @@ export function getPhoto(gemId) {
     (tx) => tx.objectStore('photos').get(gemId));
 }
 
+// ---------- Check log ----------
+// "Start over" does NOT erase the log: it is our evidence for tuning thresholds.
+
+export function addLogEntry(entry) {
+  return transaction('checkLog', 'readwrite', (tx) => tx.objectStore('checkLog').add(entry));
+}
+
+export function getLogEntries() {
+  return transaction('checkLog', 'readonly', (tx) => tx.objectStore('checkLog').getAll());
+}
+
+export function clearLog() {
+  return transaction('checkLog', 'readwrite', (tx) => tx.objectStore('checkLog').clear());
+}
+
 // ---------- Starting over ----------
 
 export function clearHunt() {

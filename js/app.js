@@ -8,7 +8,9 @@
 //   4. After the last gem, show the album.
 // Progress is saved after every change, so refreshing never loses the hunt.
 
-import { APP_VERSION, MAX_ATTEMPTS, DEMO_MODE } from './config.js';
+import {
+  APP_VERSION, MAX_ATTEMPTS, DEMO_MODE, DEBUG_MODE, MODEL_ID, MODEL_DTYPE,
+} from './config.js';
 import { loadHunt } from './gems.js';
 import {
   newProgress, loadProgress, saveProgress, savePhoto, getPhoto, clearHunt, requestPersistentStorage,
@@ -16,7 +18,9 @@ import {
 import { downscalePhoto } from './photo.js';
 import { checkPhoto } from './check.js';
 import { isCorrectAnswer } from './answer.js';
-import { forceRefresh } from './pwa.js';
+import { loadModel, onModelProgress } from './embeddings.js';
+import { recordPhotoCheck, recordBackupAnswer } from './log.js';
+import { initDebug, showInDebug, setDebugNote } from './debug.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -109,6 +113,8 @@ async function handlePhoto(event) {
     showScreen('checking');
 
     const result = await checkPhoto(gem, photo);
+    const attempt = (progress.attempts[gem.id] ?? 0) + 1;
+    showInDebug(await recordPhotoCheck({ huntId: hunt.huntId, gemId: gem.id, attempt, result }));
     // Keep the newest photo for this gem, pass or fail, so the album has a
     // picture even if the player ends up answering the backup question.
     await savePhoto(gem.id, photo.blob);
@@ -126,7 +132,8 @@ async function handlePhoto(event) {
     console.error(error);
     showResult({
       title: 'That photo didn’t work',
-      message: 'Something went wrong reading the photo. Please try again.',
+      message: 'Something went wrong checking the photo. Please try again.'
+        + (DEBUG_MODE ? ` (${error.message})` : ''),
       buttonText: 'Back to the clue',
       onButton: showClue,
     });
@@ -179,7 +186,9 @@ async function handleBackupAnswer(event) {
   const input = $('backup-answer');
 
   try {
-    if (await isCorrectAnswer(input.value, gem.backupAnswerHashes)) {
+    const correct = await isCorrectAnswer(input.value, gem.backupAnswerHashes);
+    showInDebug(await recordBackupAnswer({ huntId: hunt.huntId, gemId: gem.id, correct }));
+    if (correct) {
       input.value = '';
       await markFound(gem, 'backup');
       const saved = await getPhoto(gem.id);
@@ -243,6 +252,34 @@ async function startOver() {
   showCurrentScreen();
 }
 
+// The AI model downloads once (about 25 MB), then loads from the phone.
+// Show progress only while it's downloading; say nothing once it's ready.
+function showModelStatus(info) {
+  let text;
+  if (info.status === 'progress_total') {
+    const megabytes = Math.round(info.total / 1e6);
+    text = `Getting the photo checker ready (first time only): ${Math.round(info.progress)}% of ${megabytes} MB`;
+  } else if (info.status === 'ready') {
+    text = '';
+  } else if (info.status === 'error') {
+    text = 'The photo checker couldn’t load. Check your connection, then tap “Refresh app” below.';
+  } else {
+    return;
+  }
+  $('model-status').textContent = text;
+  $('checking-detail').textContent = text;
+}
+
+// gems.json records which model made its reference embeddings. They must match.
+function checkModelMatches() {
+  const made = hunt.model;
+  if (made && (made.id !== MODEL_ID || made.dtype !== MODEL_DTYPE)) {
+    const warning = `gems.json was made with ${made.id} ${made.dtype}, but the app uses ${MODEL_ID} ${MODEL_DTYPE}. Scores will be wrong.`;
+    console.warn(warning);
+    setDebugNote(warning);
+  }
+}
+
 function showError(error) {
   console.error(error);
   $('error-message').textContent = error.message;
@@ -265,16 +302,24 @@ async function main() {
   $('backup-form').addEventListener('submit', handleBackupAnswer);
   $('result-btn').addEventListener('click', () => onResultButton());
   $('reset-btn').addEventListener('click', startOver);
-  $('refresh-btn').addEventListener('click', forceRefresh);
   $('error-retry-btn').addEventListener('click', () => location.reload());
+
+  initDebug();
+  onModelProgress(showModelStatus);
 
   try {
     hunt = await loadHunt();
+    checkModelMatches();
     progress = await loadProgress(hunt.huntId);
     showCurrentScreen();
   } catch (error) {
     showError(error);
+    return;
   }
+
+  // Start loading the AI model now, so it's ready by the time the player
+  // takes a photo. Errors show up in the model status line.
+  loadModel().catch((error) => console.error(error));
 }
 
 main();

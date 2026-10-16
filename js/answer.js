@@ -11,16 +11,20 @@
 // "  bertrand library " count as the same answer.
 // Setup mode uses this same function when it hashes the organizer's answer,
 // so both sides always agree.
+// Digits vs words ("1846" vs "eighteen forty six") are NOT matched here:
+// list both answers in setup mode and both hashes go into gems.json.
 export function normalizeAnswer(text) {
-  // TODO(Brian): decide what counts as "the same answer". The spec says
-  // lowercase, trimmed, punctuation stripped. Open questions:
-  //   - Collapse runs of spaces ("bell  tower" vs "bell tower")?
-  //   - Accents ("café" vs "cafe")? See String.prototype.normalize('NFD').
-  //   - Leading "the" ("the quad" vs "quad")?
-  //   - Digits vs words ("1846" vs "eighteen forty six")? Usually better
-  //     handled by listing both answers in backupAnswerHashes.
-  // Temporary minimal version, so the app runs until this is written:
-  return text.trim().toLowerCase();
+  return text
+    .normalize('NFKD')                  // split accented letters: "é" becomes "e" + an accent mark
+    .replace(/[̀-ͯ]/g, '')    // ...then drop the accent marks: "café" = "cafe"
+    .toLowerCase()
+    .replace(/&/g, ' and ')             // "Fran & Joe" = "fran and joe"
+    .replace(/['‘’`]/g, '')             // apostrophes vanish: "O'Leary" = "oleary"
+    .replace(/(\d),(?=\d)/g, '$1')      // thousands commas vanish: "1,846" = "1846"
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')   // any other punctuation or run of spaces becomes one space:
+                                        // "bell-tower" = "bell  tower" = "bell tower"
+    .trim()
+    .replace(/^(the|a|an) /, '');       // a leading "the", "a" or "an" is optional: "The Quad" = "quad"
 }
 
 // SHA-256 of the normalized answer, as a 64-character hex string.
