@@ -201,7 +201,14 @@ Exported check log: 9 photo checks, demo mode, iPhone 13 Pro Max, iOS 27.0.1.
 
 - Clear passes scored 0.87–0.89; one pass was marginal (0.56).
 - Fails ranged from -0.01 to 0.42.
-- Still unknown: which of the fails were *meant* to pass. A 0.38 or 0.42 on the right object would be a wrongly rejected player at 0.5.
+- **Labels (from Brian):** every miss was a deliberately wrong object; every pass was a real attempt. So in this sample:
+  - Real attempts scored 0.56, 0.87, 0.89. All accepted.
+  - Wrong objects scored -0.01, 0.13, 0.23, 0.25, 0.38, 0.42. All rejected.
+- **0.5 separated them perfectly, but the gap is only 0.42 → 0.56.**
+  - A threshold of 0.6 would have wrongly rejected the gem-01 attempt.
+  - A threshold of 0.4 would have wrongly accepted the 0.42 wrong object.
+  - Three real attempts are far too few to set the threshold: this is a smoke test, not calibration.
+  - No real attempt was logged for the plant (gem-04), the gem whose references disagree most.
 - The log starts at attempt 2 for gem-01, so attempt 1 probably happened before a "Clear log".
 
 ## To verify (with links when done)
