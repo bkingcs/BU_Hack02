@@ -15,6 +15,11 @@ What we verified, what we assumed, what's still open. Student-facing docs are
 | Attempts | Every failed photo check counts toward `MAX_ATTEMPTS`. A photo that can't be read doesn't count. |
 | Album photo | The newest photo at each gem is kept, pass or fail, so gems solved by the backup question still show a picture. |
 | Hunt changes | `gems.json` has a `huntId`. If it changes, players' old progress and photos are cleared. |
+| Model precision | **q8 on every device**, set explicitly. See "Transformers.js" below for the measurements behind this. |
+| Model hosting | Model files are self-hosted in `models/` (same origin, no Hugging Face dependency during the hunt). The library comes from jsDelivr, pinned to `4.3.1`. |
+| Embedding | The CLS token (row 0 of `last_hidden_state`), L2-normalized; compared by cosine similarity, best of a gem's references. |
+| Check log | Every photo check and backup answer is logged on the phone (IndexedDB `checkLog`). "Start over" keeps the log; the debug panel's "Clear log" erases it. |
+| Answer normalization | NFKD with accents removed, lowercase, `&` becomes "and", apostrophes removed, thousands commas removed, other punctuation becomes a space, spaces collapsed, a leading "the/a/an" dropped. |
 
 Defaults still open to override:
 - Threshold: one global value plus an optional per-gem override.
@@ -64,15 +69,85 @@ Defaults still open to override:
 - **Caching (observed with `curl -I` on live github.io sites).** Responses carry `Cache-Control: max-age=600`, an `ETag`, and `Access-Control-Allow-Origin: *`.
   - A phone may keep showing an old file for up to 10 minutes after a deploy unless something forces a revalidation.
 
+### Transformers.js and DINOv2 (verified 2026-10-16)
+
+Sources:
+- the npm registry for `@huggingface/transformers`;
+- the [pipelines API docs](https://huggingface.co/docs/transformers.js/main/en/api/pipelines);
+- the 4.3.1 source itself (`dist/transformers.web.js`), because the docs don't state the details below;
+- the [Xenova/dinov2-small](https://huggingface.co/Xenova/dinov2-small) file listing and configs.
+
+**Version and build file**
+- **Version.** Latest is **4.3.1** (2026-10-06); 4.x began 2026-03-30. We pin `4.3.1`.
+- **Build file.** Use `dist/transformers.min.js`, the self-contained browser build (it's the package's `jsdelivr` entry).
+  - `dist/transformers.web.min.js` contains a bare `import "onnxruntime-web/webgpu"` and only works with a bundler.
+- **Lazy loading.** We load the library with a dynamic `import()` inside `loadModel()`. If the CDN fails, only the photo check breaks: clues, album and backup questions keep working.
+
+**Pipeline and model**
+- **The `image-feature-extraction` pipeline.** It takes one option, `pool`.
+  - `pool: true` returns `outputs.pooler_output` and throws if the model has none.
+  - Otherwise it returns `last_hidden_state`.
+- **What this model returns.** The ONNX export has **only `last_hidden_state`**, with dims **`[1, 257, 384]`** (1 CLS token + 16×16 patches), so `pool: true` throws.
+  - In DINOv2, `pooler_output` is just the layer-normalized CLS token, so taking row 0 is equivalent.
+- **Preprocessing** (`preprocessor_config.json`): resize the shortest edge to 256, **center-crop 224×224**, ImageNet mean/std.
+  - A portrait phone photo loses its top and bottom sixths before the model sees it.
+- **Inputs.** The pipeline accepts a `Blob` directly (`RawImage.read`).
+- **Model files.** Defaults: q8 for WASM, fp32 for everything else (including WebGPU), so we always pass `dtype`.
+  - Suffix mapping: `q8` → `model_quantized.onnx`, `fp16` → `_fp16`, `fp32` → no suffix.
+  - Sizes: fp32 88.5 MB, fp16 44.4 MB, q8 24.5 MB, uint8 22.4 MB, q4 15.0 MB, q4f16 12.9 MB, bnb4 13.7 MB.
+
+**Loading models from our own site (`env` defaults in the browser)**
+- **Defaults.** `allowLocalModels=false`, `allowRemoteModels=true`, `localModelPath="/models/"`, `useBrowserCache=true`, `cacheKey="transformers-cache"`.
+- **Gotcha 1: the path must be relative.** The default `/models/` is absolute, so on Pages it points to `bkingcs.github.io/models/`. We set `models/`.
+- **Gotcha 2: no full URLs.** In 4.3.1 the local "does this file exist?" check is skipped when `localModelPath` is a full URL.
+  - It then concludes `preprocessor_config.json` is missing, and the pipeline fails with "this.processor is not a function" even though the model loaded.
+- **Caching.** Transformers.js caches the model files *and* the ONNX Runtime WASM (from jsDelivr, pinned to the exact `onnxruntime-web` dependency) in the Cache API.
+  - So the service worker doesn't need to cache the model; `forceRefresh` keeps `transformers-cache`.
+
+**Precision experiment** (desktop Chromium, WebGPU available; 6 photos, cosine similarity of each config's CLS embedding to WASM fp32):
+
+| Config | Similarity to fp32 | Time per photo |
+|---|---|---|
+| WASM fp32 | 1.0000 | 1.0–2.9 s |
+| WASM fp16 | 1.0000 | 0.5–1.1 s |
+| WASM q8 | 0.989–0.993 | 0.5–1.2 s |
+| WebGPU fp32 | 1.0000 | 0.2–0.8 s |
+| WebGPU fp16 | 0.9996–0.9998 | 0.2–0.9 s |
+| WebGPU q8 | 0.989–0.993 | 0.5–1.0 s |
+
+For scale:
+- Two different photos of the same bee: 0.92.
+- Two different cat photos: 0.65.
+- Unrelated photos: -0.05 to 0.11.
+
+q8's ~0.01 drift is small next to that gap, so we chose q8 for the smallest download. Pinning one dtype everywhere matters more than which one.
+
+**First download, measured on the live site**
+- Model 19.7 MB (gzip; 24.5 MB raw), ONNX Runtime WASM 5.5 MB, library 0.17 MB: **≈25 MB once**.
+- In Chromium the model is fetched twice (a metadata request, then the load), but only one network transfer happens: the second is served from the HTTP cache.
+- About 5 s from page open to model ready on a laptop.
+
 ## To verify (with links when done)
+
+- [ ] iPhone: does Safari's HTTP cache keep the 24 MB model between the two requests, or does it download twice?
+- [ ] iPhone and Android: WebGPU or WASM, model load time, and time per photo (the debug panel shows all three).
 - [ ] Transformers.js `image-feature-extraction`: pinned version, the `pool` option, output shape for DINOv2, and the preprocessing (resize and center crop?).
 - [ ] iOS: whether a home-screen web app has storage separate from Safari. If it does, players should install first, then play.
 
 ## Open issues
 
 - Before step 7 there's no service worker. "Refresh app" reloads the page, but the browser may still serve cached JS for a few minutes. Step 7's versioned service worker fixes this.
-- `normalizeAnswer` in `js/answer.js` is a minimal placeholder for Brian to finish. If it changes, re-hash the placeholder answers in `gems.json` (setup mode will do this automatically later).
-- The placeholder gems in `gems.json` use one approximate campus coordinate. They will be replaced by setup-mode exports.
+- **Half-updated app (until step 7).** Pages lets browsers reuse each file for 10 minutes, and a normal reload doesn't re-check them.
+  - A phone can end up with some new modules and some old ones. A missing export then stops the whole app from starting. We hit this locally: an old `config.js` without `MODEL_DTYPE`.
+  - Mitigation for now: `pwa.js` is self-contained and loaded separately. "Refresh app" re-fetches every file with `cache: 'reload'`, and if no screen appears within 4 s the app shows "didn't load completely, tap Refresh app".
+  - The real fix is step 7's versioned service worker.
+- **`SIMILARITY_THRESHOLD = 0.5` is a guess.** Replace it with the eval.html result.
+- **Things eval.html should compare:**
+  - CLS embedding vs. mean of patch tokens.
+  - Center crop vs. letterboxing the whole photo into a square (center crop drops the top and bottom of portrait shots).
+  - q8 vs. fp16.
+- The placeholder gems in `gems.json` have one approximate campus coordinate and no references, so any photo passes (`no-references`). Replace them with setup-mode exports.
+- `setup.html` is minimal for now: reference photos and export only. Step 5 adds names, clues, backup answers, GPS and spacing.
 
 ### Our first deploy (observed 2026-10-16)
 
@@ -105,3 +180,10 @@ Defaults still open to override:
   - Live at <https://bkingcs.github.io/BU_Hack02/>.
   - `PUBLISHING.md` written for students.
   - Phone test on the live URL is still pending (Brian).
+- **Step 3 (embeddings, similarity check, debug overlay): done 2026-10-16. Live as v0.2.0.**
+  - Tested in the browser:
+    - setup.html adds references and exports a compact gems.json.
+    - Cat references: another cat photo scores 0.665 (pass), a bee 0.073 (fail).
+    - Bee reference: a second bee photo scores 0.909 (pass), baklava 0.079 (fail).
+    - The debug panel and CSV export work.
+  - Phone test pending.

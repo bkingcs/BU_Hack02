@@ -28,6 +28,21 @@ Then open <http://localhost:8000/?demo=1> (`?demo=1` lets you pick photos instea
 | `gems.json` | The hunt: each gem's name, clue, location and backup question |
 | `js/config.js` | Numbers you can tune, like how many tries before the backup question |
 | `js/app.js` | What happens when you tap things |
+| `js/check.js` | Decides whether a photo counts |
+| `setup.html` | Organizer page: add reference photos, export `gems.json` |
+
+## The photo check
+
+When a player takes a photo, a small AI model (DINOv2-small) running **on the
+phone** turns it into 384 numbers. The app compares those numbers with the
+gem's reference photos (made in `setup.html`). Close enough means found.
+
+- **First visit:** the phone downloads about **25 MB** once (the model is 19.7 MB,
+  the AI runtime 5.5 MB). After that it loads from the phone, even offline.
+- **Organizers:** open `setup.html` (not linked from the app) to add 3 to 5
+  reference photos per gem, then export `gems.json` and commit it.
+- **See the numbers:** add `?debug=1` to the address. A "Debug" bar shows each
+  check's score and timing; tap it for details and to export the log as a CSV.
 
 ## Publish it
 
