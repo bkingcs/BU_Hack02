@@ -32,9 +32,39 @@ Defaults still open to override:
   - Because of this, we use the colors only.
 - **Text contrast.** Orange `#E8751E` on white is about 3:1, which fails WCAG AA for normal text. Orange is used only for borders and the demo banner (with dark text); orange text uses `#A84F0C` (about 5.5:1).
 
-## To verify (with links when done)
+### Secure contexts (verified 2026-10-16)
 
-- [ ] Secure-context requirements on MDN for Geolocation, service workers, `navigator.storage.persist()`, WebGPU, `crypto.subtle`, and file input `capture`. Hypothesis: `<input capture>` works over HTTP; the rest need HTTPS or localhost.
+- **What counts as secure.** [MDN: Secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts): HTTPS, `localhost` / `*.localhost`, `127.0.0.0/8`, `::1`, or `file:`.
+  - A LAN address over HTTP (for example `http://192.168.1.20:8000`) isn't in that list, so it isn't secure.
+- **What requires it.** [MDN: Features restricted to secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts/features_restricted_to_secure_contexts) lists Geolocation, Service Workers, the Storage API, WebGPU, the Web Crypto API, and `getUserMedia`.
+  - `<input type="file" capture>` is **not** listed.
+- **What this means for the spec's reasoning.** It needed a correction: the camera input works over plain HTTP. What forces HTTPS is GPS, offline use and install (service worker), persistent storage, WebGPU, and `crypto.subtle` (the backup-answer hash). The conclusion stands: test phones on the Pages URL.
+- **Quick check.** `window.isSecureContext` tells you whether the current page is secure.
+
+### GitHub Pages (verified 2026-10-16)
+
+- **Free plan needs a public repo.** [Creating a GitHub Pages site](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site):
+  - "If the account that owns the repository uses GitHub Free … the repository must be public."
+  - On plans that allow private-repo Pages, "GitHub Pages sites are publicly available on the internet, even if the repository for the site is private."
+  - "It can take up to 10 minutes for changes to your site to publish."
+- **Publishing source.** [Configuring a publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site):
+  - The UI path is Settings → Pages → Build and deployment → Source: "Deploy from a branch" → branch + folder (`/` root or `/docs`) → Save.
+  - The "GitHub Actions" source is for custom build processes.
+  - "Your GitHub Pages site will always be deployed with a GitHub Actions workflow run," including branch deploys. Failures show up in the repo's workflow runs.
+- **Project site URL.** [About GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages): a project site lives at `<owner>.github.io/<repositoryname>`.
+- **HTTPS.** [Securing with HTTPS](https://docs.github.com/en/pages/getting-started-with-github-pages/securing-your-github-pages-site-with-https): "sites created after June 15, 2016, and using `github.io` domains are served over HTTPS automatically."
+  - Observed: `http://` requests get a 301 to `https://`.
+- **Jekyll and `.nojekyll`.** [About GitHub Pages and Jekyll](https://docs.github.com/en/pages/setting-up-a-github-pages-site-with-jekyll/about-github-pages-and-jekyll): Jekyll skips files and folders starting with `_`, `.` or `#`, or ending with `~`.
+  - The creating-a-site page says an empty `.nojekyll` at the root of the publishing source disables Jekyll.
+- **Limits.** [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits):
+  - Published site up to 1 GB; repo recommended under 1 GB.
+  - 10-minute deploy timeout.
+  - Soft limits of 10 builds per hour and 100 GB per month of bandwidth.
+  - No sites that handle passwords or payments.
+- **Caching (observed with `curl -I` on live github.io sites).** Responses carry `Cache-Control: max-age=600`, an `ETag`, and `Access-Control-Allow-Origin: *`.
+  - A phone may keep showing an old file for up to 10 minutes after a deploy unless something forces a revalidation.
+
+## To verify (with links when done)
 - [ ] Transformers.js `image-feature-extraction`: pinned version, the `pool` option, output shape for DINOv2, and the preprocessing (resize and center crop?).
 - [ ] iOS: whether a home-screen web app has storage separate from Safari. If it does, players should install first, then play.
 - [ ] GitHub Pages: everything in the walkthrough (step 2).
