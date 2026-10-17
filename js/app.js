@@ -19,8 +19,11 @@ import { downscalePhoto } from './photo.js';
 import { checkPhoto } from './check.js';
 import { isCorrectAnswer } from './answer.js';
 import { loadModel, onModelProgress, ModelLoadError } from './embeddings.js';
+import {
+  startWatching, stopWatching, onLocationChange, distanceMeters, describeLocationError,
+} from './location.js';
 import { recordPhotoCheck, recordBackupAnswer } from './log.js';
-import { initDebug, showInDebug, setDebugNote } from './debug.js';
+import { initDebug, showInDebug, setDebugNote, showGpsInDebug } from './debug.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -91,7 +94,39 @@ function showClue() {
   $('backup-feedback').textContent = '';
   $('photo-label').textContent = offerBackup ? 'Try another photo' : photoButtonText();
 
+  // Keep the location fresh while the player hunts (not in demo mode).
+  if (!DEMO_MODE) startWatching();
   showScreen('clue');
+}
+
+// ---------- Location status ----------
+
+// Show the GPS accuracy on the clue screen, so players can tell it's working.
+// (We don't show the distance to the gem: that would give the hunt away.)
+function showGpsStatus({ reading, error }) {
+  let text;
+  if (reading) {
+    text = `Location found (±${Math.round(reading.accuracyM)} m)`;
+  } else if (error?.code === 1) {
+    text = 'Location is turned off, so only your photo will be checked.';
+  } else if (error) {
+    text = 'Can’t find your location right now. Your photo will still be checked.';
+  }
+  $('gps-status').textContent = text ?? 'Finding your location…';
+
+  // The debug panel may show the distance (organizers only).
+  const gem = progress?.startedAt ? currentGem() : null;
+  showGpsInDebug(reading
+    ? `±${Math.round(reading.accuracyM)} m${gem ? `, ${Math.round(distanceMeters(reading, gem))} m from ${gem.id}` : ''}`
+    : describeLocationError(error) || 'waiting…');
+}
+
+// GPS uses battery, so pause it while the phone is locked or the app is hidden.
+function handleVisibilityChange() {
+  if (DEMO_MODE) return;
+  const hunting = progress?.startedAt && progress.currentIndex < hunt.gems.length;
+  if (document.hidden) stopWatching();
+  else if (hunting) startWatching();
 }
 
 function photoButtonText() {
@@ -214,6 +249,7 @@ async function handleBackupAnswer(event) {
 // ---------- The album ----------
 
 async function showAlbum() {
+  stopWatching();   // the hunt is over: no more location needed
   releasePhotos();
   const list = $('album-list');
   list.replaceChildren();
@@ -256,6 +292,7 @@ async function startHunt() {
 async function startOver() {
   if (!confirm('Erase your progress and photos and start over?')) return;
   await clearHunt();
+  stopWatching();
   progress = newProgress(hunt.huntId);
   releasePhotos();
   showCurrentScreen();
@@ -317,6 +354,8 @@ async function main() {
 
   initDebug();
   onModelProgress(showModelStatus);
+  onLocationChange(showGpsStatus);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
   try {
     hunt = await loadHunt();

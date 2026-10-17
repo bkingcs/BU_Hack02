@@ -10,6 +10,7 @@ import { loadHunt } from './gems.js';
 import { downscalePhoto } from './photo.js';
 import { embedImage, cosineSimilarity, loadModel, onModelProgress } from './embeddings.js';
 import { downloadFile } from './log.js';
+import { collectReadings, describeLocationError } from './location.js';
 
 const $ = (id) => document.getElementById(id);
 const DRAFT_KEY = 'hidden-gems-setup-draft';
@@ -73,6 +74,41 @@ function blobToDataUrl(blob) {
   });
 }
 
+// ---------- Recording a gem's location ----------
+
+const GPS_SECONDS = 15;
+
+// Stand at the gem and average the readings for a few seconds. A single GPS
+// reading can be off by 10+ meters; an average of many is steadier.
+async function recordLocation(gem, statusLine) {
+  statusLine.textContent = `Reading GPS. Stand still for ${GPS_SECONDS} seconds…`;
+  const { readings, error } = await collectReadings(GPS_SECONDS * 1000, (sofar) => {
+    const best = Math.min(...sofar.map((r) => r.accuracyM));
+    statusLine.textContent = `Reading GPS… ${sofar.length} readings, best ±${Math.round(best)} m`;
+  });
+  if (readings.length === 0) {
+    statusLine.textContent = `No location: ${describeLocationError(error)}. Is location allowed for this site?`;
+    return;
+  }
+  // Trust precise readings more: each one counts by 1 / accuracy².
+  const weights = readings.map((r) => 1 / r.accuracyM ** 2);
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  const average = (key) => readings.reduce((sum, r, i) => sum + r[key] * weights[i], 0) / total;
+  const accuracies = readings.map((r) => r.accuracyM).sort((a, b) => a - b);
+
+  gem.lat = Number(average('lat').toFixed(6));   // 6 decimals is about 10 cm
+  gem.lng = Number(average('lng').toFixed(6));
+  gem.locationAccuracyM = Math.round(accuracies[Math.floor(accuracies.length / 2)]);   // the median
+  gem.locationReadings = readings.length;
+  saveDraft();
+  render();
+}
+
+function describeLocation(gem) {
+  if (gem.locationAccuracyM == null) return 'Location: not recorded yet.';
+  return `Location: ${gem.lat}, ${gem.lng} (typical accuracy ±${gem.locationAccuracyM} m, ${gem.locationReadings} readings)`;
+}
+
 // How alike are a gem's reference photos? If they barely match each other,
 // players' photos won't match them well either.
 function describeReferences(references) {
@@ -102,6 +138,15 @@ function render() {
     gem.references ??= [];
     card.querySelector('.gem-name').textContent = `${gem.id}: ${gem.name}`;
     card.querySelector('.gem-clue').textContent = gem.clue;
+
+    const locationLine = card.querySelector('.gem-location');
+    locationLine.textContent = describeLocation(gem);
+    const locationButton = card.querySelector('.location-btn');
+    locationButton.addEventListener('click', async () => {
+      locationButton.disabled = true;
+      await recordLocation(gem, locationLine);
+      locationButton.disabled = false;
+    });
     const statusLine = card.querySelector('.ref-stats');
     statusLine.textContent = describeReferences(gem.references);
 

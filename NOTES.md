@@ -19,6 +19,7 @@ What we verified, what we assumed, what's still open. Student-facing docs are
 | Model hosting | Model files are self-hosted in `models/` (same origin, no Hugging Face dependency during the hunt). The library comes from jsDelivr, pinned to `4.3.1`. |
 | Embedding | The CLS token (row 0 of `last_hidden_state`), L2-normalized; compared by cosine similarity, best of a gem's references. |
 | Check log | Every photo check and backup answer is logged on the phone (IndexedDB `checkLog`). "Start over" keeps the log; the debug panel's "Clear log" erases it. |
+| Location rule | A photo fails on location only when the phone is **clearly elsewhere**: `distance − accuracy > radius`. Otherwise (`inside`, `uncertain`, `unavailable`, `skipped`) the image decides. See "Geolocation" below. |
 | Answer normalization | NFKD with accents removed, lowercase, `&` becomes "and", apostrophes removed, thousands commas removed, other punctuation becomes a space, spaces collapsed, a leading "the/a/an" dropped. |
 
 Defaults still open to override:
@@ -211,11 +212,68 @@ Exported check log: 9 photo checks, demo mode, iPhone 13 Pro Max, iOS 27.0.1.
   - No real attempt was logged for the plant (gem-04), the gem whose references disagree most.
 - The log starts at attempt 2 for gem-01, so attempt 1 probably happened before a "Clear log".
 
+### Geolocation (verified 2026-10-16; step 4)
+
+Sources: [MDN: GeolocationCoordinates.accuracy](https://developer.mozilla.org/en-US/docs/Web/API/GeolocationCoordinates/accuracy) and [MDN: getCurrentPosition](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurrentPosition).
+
+**API facts**
+- **`accuracy`:** meters, at **95% confidence**.
+- **Options:** `timeout` defaults to **Infinity** (so we always set one), `maximumAge` defaults to 0, `enableHighAccuracy` defaults to false.
+- **Requirements:** a secure context and the player's permission.
+- **Error codes** (from the spec, as MDN's page doesn't list them): 1 permission denied, 2 position unavailable, 3 timeout.
+
+**The decision rule** (`locationVerdict` in `js/check.js`):
+
+| Verdict | When | Effect |
+|---|---|---|
+| `inside` | distance ≤ radius | image decides |
+| `uncertain` | outside the radius, but distance − accuracy ≤ radius (GPS error could explain it) | image decides |
+| `outside` | distance − accuracy > radius | **fails** ("too-far") |
+| `unavailable` | no reading (denied, no signal, timeout) | image decides |
+| `skipped` | demo mode | image decides |
+
+- **How this differs from the spec.** The spec says "if accuracy is worse than the radius, let the image decide."
+  - Our rule does that whenever the player *could* be inside.
+  - It still rejects a player who is clearly elsewhere: 600 m away with ±100 m accuracy is `outside`.
+  - It's also more lenient than a plain `distance > radius` check when accuracy is good: at ±10 m, a 50 m reading still passes with radius 40. That's intentional, because wrongly rejecting a player is worse.
+- **Teaching point:** a player can deny location and the image alone decides. Like the hashed answers, a client-side check can't be enforced against someone determined to cheat.
+
+**When the app reads the location**
+- `watchPosition` runs while a clue is showing (high accuracy, `maximumAge` 5 s, `timeout` 20 s).
+- It stops on the album, on "Start over", and while the page is hidden (to save battery).
+- A photo check uses the latest reading if it's under 15 s old; otherwise it asks for a fresh one with a 10 s timeout.
+- The location lookup runs **in parallel with** the image model.
+
+**What players see**
+- The clue screen shows "Location found (±N m)" or a plain message when location is off or unavailable.
+- It never shows the distance to the gem, which would give the hunt away. The debug panel shows "GPS now: ±N m, D m from gem-XX" for organizers.
+
+**What gets logged:** `distanceM`, `accuracyM`, `radiusM`, `locationStatus`, `locationError`.
+
+**Setup mode**
+- "Record location here" averages ~15 s of readings, each weighted by 1/accuracy².
+- It saves `lat`/`lng` (6 decimals) plus `locationAccuracyM` (the median) and `locationReadings`.
+
+**Tested in the browser with fake GPS** (a temporary page that replaced `navigator.geolocation`):
+- 0 m → inside, pass.
+- 600 m at ±15 → outside, fail.
+- 60 m at ±30 → uncertain, pass.
+- 60 m at ±10 → outside, fail.
+- Permission denied → unavailable, pass.
+- Demo mode → skipped.
+- Setup averaging landed 0.3 m from the true point despite one reading 20 m off.
+
+**Bugs found while testing**
+- **Stale reading after denial.** After permission was denied, the last good reading was still used. Fix: clear the cached reading on error code 1.
+- **`hidden` didn't hide buttons.** Elements with class `.button` ignored the `hidden` attribute, because `display: flex` overrides the browser's default `[hidden] { display: none }`. So the Reload buttons were always visible. Fix: a global `[hidden] { display: none !important; }`. **This belongs on the student gotcha list.**
+
 ## To verify (with links when done)
 
 - [ ] iPhone: does Safari's HTTP cache keep the 24 MB model between the two requests, or does it download twice?
 - [ ] iPhone and Android: WebGPU or WASM, model load time, and time per photo (the debug panel shows all three).
   - iPhone 13 Pro Max, iOS 27 (Safari): WebGPU, model loaded in 783 ms (player page).
+- [ ] Outdoors on campus: real `accuracyM` and distance spread at each gem, which sets the radius and spacing.
+- [ ] iPhone home-screen app: is location permission remembered, or asked every session?
 - [x] iPhone: setup.html works on v0.2.2 in a fresh tab. Brian added references for all four gems and exported gems.json (iPhone 13 Pro Max, iOS 27, 2026-10-16).
 - [ ] Transformers.js `image-feature-extraction`: pinned version, the `pool` option, output shape for DINOv2, and the preprocessing (resize and center crop?).
 - [ ] iOS: whether a home-screen web app has storage separate from Safari. If it does, players should install first, then play.
@@ -273,3 +331,6 @@ Exported check log: 9 photo checks, demo mode, iPhone 13 Pro Max, iOS 27.0.1.
     - Bee reference: a second bee photo scores 0.909 (pass), baklava 0.079 (fail).
     - The debug panel and CSV export work.
   - Phone test pending.
+- **Step 4 (location check): done 2026-10-16. Live as v0.3.0.**
+  - Fake-GPS browser tests pass (see "Geolocation").
+  - Phone test pending: the desk gems still have placeholder coordinates, so record each one's location in setup.html first.

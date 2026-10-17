@@ -2,7 +2,7 @@
 
 // Shown in the footer. Bump it every time you publish, so you can tell
 // at a glance whether your phone has the newest version.
-export const APP_VERSION = '0.2.2';
+export const APP_VERSION = '0.3.0';
 
 // After this many missed photos on one gem, offer the backup question.
 export const MAX_ATTEMPTS = 3;
@@ -24,6 +24,11 @@ export const MODEL_DTYPE = 'q8';   // 8-bit version: a 24.5 MB download (see NOT
 // photos to count. PROVISIONAL until we measure it with eval.html.
 // A gem in gems.json can override this with its own "threshold".
 export const SIMILARITY_THRESHOLD = 0.5;
+
+// ---------- The location check ----------
+// How close (in meters) the phone must be to a gem's recorded spot, unless the
+// gem in gems.json has its own "radiusMeters". PROVISIONAL until the campus test.
+export const DEFAULT_RADIUS_METERS = 40;
 
 // Switches you can turn on by adding them to the web address:
 //   ?demo=1   desk demo: skip the location check, pick photos from the camera roll

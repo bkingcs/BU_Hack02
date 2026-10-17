@@ -10,7 +10,7 @@
 export const APP_FILES = [
   './', 'index.html', 'setup.html', 'gems.json', 'css/style.css', 'icons/gem.svg',
   'js/app.js', 'js/answer.js', 'js/check.js', 'js/config.js', 'js/debug.js',
-  'js/embeddings.js', 'js/gems.js', 'js/log.js', 'js/photo.js', 'js/pwa.js',
+  'js/embeddings.js', 'js/gems.js', 'js/location.js', 'js/log.js', 'js/photo.js', 'js/pwa.js',
   'js/setup.js', 'js/storage.js',
 ];
 

@@ -9,7 +9,7 @@ import { addLogEntry, getLogEntries, clearLog } from './storage.js';
 const COLUMNS = [
   'time', 'appVersion', 'huntId', 'gemId', 'kind', 'attempt', 'outcome', 'reason',
   'bestScore', 'matchedRef', 'threshold', 'allScores',
-  'distanceM', 'accuracyM',
+  'distanceM', 'accuracyM', 'radiusM', 'locationStatus', 'locationError',
   'embedMs', 'totalMs', 'modelDevice', 'modelDtype', 'demoMode', 'userAgent',
 ];
 
@@ -29,6 +29,9 @@ export function recordPhotoCheck({ huntId, gemId, attempt, result }) {
     allScores: d.scores.map((s) => round(s, 3)).join(' '),
     distanceM: round(d.distanceM, 1),
     accuracyM: round(d.accuracyM, 1),
+    radiusM: d.radiusM,
+    locationStatus: d.locationStatus,
+    locationError: d.locationError,
     embedMs: d.embedMs,
     totalMs: d.totalMs,
     modelDevice: d.device,

@@ -10,6 +10,13 @@ const $ = (id) => document.getElementById(id);
 
 let lastEntry = null;   // the most recent log entry
 let note = '';          // a warning to show, e.g. a model mismatch
+let liveGps = '—';      // the latest GPS reading, updated as the player walks
+
+// Called by app.js whenever a new GPS reading (or error) arrives.
+export function showGpsInDebug(text) {
+  liveGps = text;
+  render();
+}
 
 export function initDebug() {
   if (!DEBUG_MODE) return;
@@ -60,8 +67,11 @@ async function render() {
     ['Best score', e.bestScore == null ? '—' : `${e.bestScore}  (threshold ${e.threshold})`],
     ['Matched ref', e.matchedRef == null ? '—' : `#${e.matchedRef + 1}`],
     ['All scores', show(e.allScores)],
-    ['Distance', show(e.distanceM, ' m')],
+    ['Location', e.locationStatus == null ? '—'
+      : `${e.locationStatus}${e.locationError ? ` (${e.locationError})` : ''}`],
+    ['Distance', e.distanceM == null ? '—' : `${e.distanceM} m (radius ${e.radiusM} m)`],
     ['GPS accuracy', show(e.accuracyM, ' m')],
+    ['GPS now', liveGps],
     ['Timing', e.totalMs == null ? '—' : `${e.embedMs} ms model, ${e.totalMs} ms total`],
     ['Log', `${await countLogEntries()} entries on this phone`],
   ];
@@ -73,6 +83,7 @@ async function render() {
     summary = e.outcome.toUpperCase();
     if (e.bestScore != null) summary += ` ${e.bestScore.toFixed(2)} ${e.bestScore >= e.threshold ? '≥' : '<'} ${e.threshold}`;
     else summary += ` (${e.reason})`;
+    if (e.distanceM != null) summary += ` · ${Math.round(e.distanceM)} m ${e.locationStatus}`;
     if (e.totalMs != null) summary += ` · ${(e.totalMs / 1000).toFixed(1)} s`;
   }
   $('debug-toggle').textContent = `${note ? '⚠ ' : ''}Debug: ${summary}`;
